@@ -17,7 +17,22 @@ export const handler = async (
   };
 
   try {
-    //  TOD∏O - Add role if its IDs are valid
+    await ddb.send(
+      new TransactWriteCommand({
+        TransactItems: [
+          {
+            Put: {
+              TableName: tableName,
+              Item: {
+                PK: movieKey(role.movieId), // Partition key for the movie
+                SK: actorKey(role.actorId), // Sort key for the actor
+                ...role,
+              },
+            },
+          },
+        ],
+      })
+    );
     return response(201, { message: "Role added", data: role });
   } catch (err) {
     console.error("DynamoDB error:", err);
