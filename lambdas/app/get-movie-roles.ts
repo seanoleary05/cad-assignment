@@ -5,6 +5,7 @@ import {
   isRoleItem,
   movieKey,
   parseId,
+  actorKey,
   tableName,
   toRole,
 } from "../shared/db";
@@ -20,12 +21,22 @@ export const handler = async (
   if (movieId === undefined) {
     return response(400, { message: "movieID must be a positive integer" });
   }
+
+  const actorId = parseId(event.queryStringParameters?.actor ?? event.queryStringParameters?.actorID);
   try {
+
+    let keyCondition = "PK = :pk";
+    const expressionValues: Record<string, any> = { ":pk": movieKey(movieId) };
+    
+    if (actorId !== undefined) {
+      keyCondition += " AND SK = :sk";
+      expressionValues[":sk"] = actorKey(actorId);
+    }
     const queryResult = await ddb.send(
       new QueryCommand({
         TableName: tableName,
-        KeyConditionExpression: "PK = :pk",
-        ExpressionAttributeValues: { ":pk": movieKey(movieId) },
+        KeyConditionExpression: keyCondition,
+        ExpressionAttributeValues: expressionValues,
         // ExclusiveStartKey: lastKey,
       })
     );
