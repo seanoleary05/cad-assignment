@@ -11,6 +11,7 @@ import {
 } from "../shared/db";
 import { response } from "../shared/http";
 import { logRequest } from "../shared/request-logger";
+import { isMovieItem, toActor } from "../shared/model";
 
 export const handler = async (
   event: APIGatewayProxyEvent
@@ -29,6 +30,16 @@ if (actorParam !== undefined && actorId === undefined) {
 }
 
   try {
+
+    const movieResult = await ddb.send(
+      new GetCommand({
+      TableName: tableName,
+      Key: { PK: movieKey(movieId), SK: movieKey(movieId) },
+    })
+      );
+    if (!movieResult.Item || !isMovieItem(movieResult.Item)) { // uses the isMovieItem helper function
+      return response(404, { message: `Movie ${movieId} not found` });
+}
 
     let keyCondition = "PK = :pk";
     const expressionValues: Record<string, any> = { ":pk": movieKey(movieId) };
