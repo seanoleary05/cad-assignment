@@ -22,7 +22,12 @@ export const handler = async (
     return response(400, { message: "movieID must be a positive integer" });
   }
 
-  const actorId = parseId(event.queryStringParameters?.actor ?? event.queryStringParameters?.actorID);
+const actorParam = event.queryStringParameters?.actor;
+const actorId = parseId(actorParam);
+if (actorParam !== undefined && actorId === undefined) {
+  return response(400, { message: "actor must be a positive integer" });
+}
+
   try {
 
     let keyCondition = "PK = :pk";
@@ -32,6 +37,7 @@ export const handler = async (
       keyCondition += " AND SK = :sk";
       expressionValues[":sk"] = actorKey(actorId);
     }
+
     const queryResult = await ddb.send(
       new QueryCommand({
         TableName: tableName,
