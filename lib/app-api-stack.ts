@@ -40,13 +40,13 @@ export class AppApiStack extends cdk.Stack {
       });
 
     // Lambdas
-    const getMovieRolesFn = appFn('GetMovieRolesFn', 'app/get-movie-roles.ts');
+    const getMovieRolesFn = appFn('GetMovieRolesFn', 'app/get-movie-roles.ts',);
     const getActorFn = appFn('GetActorFn', 'app/get-actor.ts');
     const addMovieRoleFn = appFn('AddMovieRoleFn', 'app/add-movie-role.ts');
-    // const authorizerFn = appFn('AuthorizerFn', 'auth/authorizer.ts', {
-    //   USER_POOL_ID: props.userPool.userPoolId,
-    //   CLIENT_ID: props.userPoolClient.userPoolClientId,
-    // });
+    const authorizerFn = appFn('AuthorizerFn', 'auth/authorizer.ts', {
+      USER_POOL_ID: props.userPool.userPoolId,
+      CLIENT_ID: props.userPoolClient.userPoolClientId,
+    });
 
     table.grantReadData(getMovieRolesFn);
     table.grantReadData(getActorFn);
@@ -70,11 +70,11 @@ export class AppApiStack extends cdk.Stack {
       installLatestAwsSdk: false,
     });
 
-    // const userAuthorizer = new apig.RequestAuthorizer(this, 'UserAuthorizer', {
-    //   handler: authorizerFn,
-    //   identitySources: [apig.IdentitySource.header('cookie')],
-    //   resultsCacheTtl: cdk.Duration.minutes(0),
-    // });
+    const userAuthorizer = new apig.RequestAuthorizer(this, 'UserAuthorizer', {
+      handler: authorizerFn,
+      identitySources: [apig.IdentitySource.header('cookie')],
+      resultsCacheTtl: cdk.Duration.minutes(0),
+    });
 
     const api = new apig.RestApi(this, 'AppApi', {
       description: 'Movie cast API',
@@ -88,11 +88,10 @@ export class AppApiStack extends cdk.Stack {
       },
     });
 
-    // const userAuth: apig.MethodOptions = {
-    //   authorizer: userAuthorizer,
-    //   authorizationType: apig.AuthorizationType.CUSTOM,
-    // }; commented out to test happy path without auth, but can be added back in to test auth flow
-    // Routes
+    const userAuth: apig.MethodOptions = {
+      authorizer: userAuthorizer,
+      authorizationType: apig.AuthorizationType.CUSTOM,
+    }; 
     const moviesResource = api.root.addResource('movies');
 
 
@@ -103,11 +102,11 @@ export class AppApiStack extends cdk.Stack {
     moviesResource.addMethod('POST', new apig.LambdaIntegration(addMovieRoleFn));
 
     const movieRolesResource = moviesResource.addResource('{movieID}').addResource('roles');
-    movieRolesResource.addMethod('GET', new apig.LambdaIntegration(getMovieRolesFn));
+    movieRolesResource.addMethod('GET', new apig.LambdaIntegration(getMovieRolesFn), userAuth);
 
     api.root
       .addResource('actors')
       .addResource('{actorID}')
-      .addMethod('GET', new apig.LambdaIntegration(getActorFn));
+      .addMethod('GET', new apig.LambdaIntegration(getActorFn), userAuth);
   }
 }
