@@ -11,6 +11,7 @@ import {
 } from "../shared/db";
 import { response } from "../shared/http";
 import { logRequest } from "../shared/request-logger";
+import { isMovieItem, toActor } from "../shared/model";
 
 export const handler = async (
   event: APIGatewayProxyEvent
@@ -22,8 +23,23 @@ export const handler = async (
     return response(400, { message: "movieID must be a positive integer" });
   }
 
-  const actorId = parseId(event.queryStringParameters?.actor ?? event.queryStringParameters?.actorID);
+const actorParam = event.queryStringParameters?.actor;
+const actorId = parseId(actorParam);
+if (actorParam !== undefined && actorId === undefined) {
+  return response(400, { message: "actor must be a positive integer" });
+}
+
   try {
+
+    const movieResult = await ddb.send(
+      new GetCommand({
+      TableName: tableName,
+      Key: { PK: movieKey(movieId), SK: movieKey(movieId) },
+    })
+      );
+    if (!movieResult.Item || !isMovieItem(movieResult.Item)) { // uses the isMovieItem helper function
+      return response(404, { message: `Movie ${movieId} not found` });
+}
 
     let keyCondition = "PK = :pk";
     const expressionValues: Record<string, any> = { ":pk": movieKey(movieId) };
@@ -32,6 +48,7 @@ export const handler = async (
       keyCondition += " AND SK = :sk";
       expressionValues[":sk"] = actorKey(actorId);
     }
+
     const queryResult = await ddb.send(
       new QueryCommand({
         TableName: tableName,
